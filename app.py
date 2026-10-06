@@ -44,12 +44,19 @@ class Defect(db.Model):
     id=db.Column(db.Integer,primary_key=True); inspection_id=db.Column(db.Integer,db.ForeignKey("inspections.id"),nullable=False,index=True)
     category=db.Column(db.String(3),nullable=False); description=db.Column(db.String(500),nullable=False); qty=db.Column(db.Integer,nullable=False,default=1)
 
+from sqlalchemy.exc import OperationalError, IntegrityError
+
 def init_db():
-    db.create_all()
+    # 捕获多进程并发建表时的 SQLite 冲突异常
+    try:
+        db.create_all()
+    except (OperationalError, IntegrityError):
+        pass
+
     u = os.getenv("ADMIN_USER")
     p = os.getenv("ADMIN_PASSWORD")
     if u and p:
-        # 增加查询判断：只有当用户名不存在时才创建
+        # 检查管理员账号是否已存在，防止重复插入报错
         existing_user = User.query.filter_by(username=u).first()
         if not existing_user:
             db.session.add(User(
@@ -62,7 +69,9 @@ def init_db():
                 db.session.commit()
             except Exception:
                 db.session.rollback()
-with app.app_context(): init_db()
+
+with app.app_context():
+    init_db()
 
 def current_user(): return db.session.get(User,session.get("uid")) if session.get("uid") else None
 @app.context_processor
