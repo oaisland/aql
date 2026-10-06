@@ -46,10 +46,22 @@ class Defect(db.Model):
 
 def init_db():
     db.create_all()
-    if User.query.count()==0:
-        u=os.environ.get("ADMIN_USER"); p=os.environ.get("ADMIN_PASSWORD")
-        if not u or not p: raise RuntimeError("首次启动必须设置 ADMIN_USER 与 ADMIN_PASSWORD")
-        db.session.add(User(username=u,password_hash=generate_password_hash(p),role="admin",active=True)); db.session.commit()
+    u = os.getenv("ADMIN_USER")
+    p = os.getenv("ADMIN_PASSWORD")
+    if u and p:
+        # 增加查询判断：只有当用户名不存在时才创建
+        existing_user = User.query.filter_by(username=u).first()
+        if not existing_user:
+            db.session.add(User(
+                username=u,
+                password_hash=generate_password_hash(p),
+                role="admin",
+                active=True
+            ))
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 with app.app_context(): init_db()
 
 def current_user(): return db.session.get(User,session.get("uid")) if session.get("uid") else None
