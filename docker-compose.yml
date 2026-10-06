@@ -1,0 +1,11 @@
+services:
+  aql:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - aql_data:/data
+volumes:
+  aql_data:
